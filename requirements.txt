@@ -1,0 +1,5 @@
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+python-dotenv>=1.0.0
+dnspython>=2.6.0
+ddgs>=1.0.0

@@ -1,0 +1,38 @@
+# Environment variables & secrets
+.env
+.env.local
+*.env
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Large media files (attachments should be hosted or kept in resources locally)
+*.mp4
+*.mov
+*.avi
+*.mkv
+resources/*.mp4
+resources/*.mov
+
+# Lead logs & local histories (keep folder structure with .gitkeep)
+leads/*.csv
+leads/*.json
+!leads/.gitkeep
+
+# IDE & OS files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
