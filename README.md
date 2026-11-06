@@ -1,4 +1,4 @@
-# 💍 Wedding & E-Invitation AI Outreach Engine
+# 💍 Wedding & Creative Service AI Outreach Suite
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -6,17 +6,19 @@
 [![TLS Security](https://img.shields.io/badge/Security-Gmail%20TLS%20587-orange.svg)]()
 [![Anti-Spam](https://img.shields.io/badge/Pacing-Human%20Cadence-success.svg)]()
 
-An autonomous, production-ready AI Outreach Engine tailored specifically for **Luxury Wedding Planners, Event Management Agencies, E-Invitation Studios, and Wedding Cinematography Houses**.
-
-Designed to find hyper-targeted, verified leads from real-time web signals, validate emails via DNS MX records, extract verified client contact numbers for instant Telegram alerts, and send personalized high-converting video pitches with zero spam bounce.
+An autonomous, production-ready AI Outreach Suite containing two dedicated outreach engines:
+1. **💍 Wedding & E-Invitation Agent** (`wedding_agent.py`) [ACTIVE]
+   - Tailored specifically for **Luxury Wedding Planners, Event Management Agencies, E-Invitation Studios, and Wedding Cinematography Houses**.
+2. **🎬 Creative Service Pitch Agent** (`service_pitch_agent.py`) [STANDBY / OFF BY DEFAULT]
+   - Tailored for **Video Editing, Short-Form Reels/Shorts Retention Editing, and Podcast Clipping Agencies**.
 
 ---
 
-## ⚡ Core Capabilities
+## ⚡ Core Capabilities Across Both Agents
 
 - 🎯 **Real-Time High-Intent Lead Scraping**:
-  - Dynamically scrapes verified public contact details of active wedding planners and luxury coordinators across India, UAE/Dubai, the UK, Europe, and the US/Canada.
-  - Excludes stale job seekers, bot accounts, and spam directories.
+  - Dynamically scrapes verified public contact details of active businesses and open hiring calls.
+  - Excludes stale job seekers, bot accounts, and freelancer self-promotions.
 
 - 🛡️ **Zero-Bounce Email Cleaning & DNS MX Validation**:
   - Automatic URL & suffix stripping (e.g. cleans typos like `name@gmail.comlet` -> `name@gmail.com`).
@@ -28,17 +30,11 @@ Designed to find hyper-targeted, verified leads from real-time web signals, vali
   - Automatically pushes warm lead profiles and phone numbers directly to your private **Telegram** bot for high-priority WhatsApp follow-ups.
 
 - 🎬 **Rich 3D/Motion Video Attachment**:
-  - Automatically compresses and attaches your luxury motion wedding invite video sample (under Gmail's 25 MB limit) directly to the email body.
-  - Supports automatic fallback to hosted high-definition portfolio links if no local video file is present.
+  - Automatically compresses and attaches your luxury motion video invite sample (under Gmail's 25 MB limit) directly to the email body.
 
-- 🕒 **Segmented 3-Tier Daily Batches (15 Leads / Session)**:
-  - **Morning Batch (09:00 - 11:30 AM)**: India & South Asia luxury wedding planners (Delhi, Mumbai, Jaipur, Udaipur).
-  - **Afternoon Batch (02:00 - 04:30 PM)**: Dubai, UAE, UK & European destination wedding agencies.
-  - **Night Batch (08:30 - 10:30 PM)**: US, Canada & Global NRI wedding management companies.
-  - Strict anti-spam pacing: random 45–75 second delay between dispatches.
-
-- 🧪 **Safety & Dry-Run Mode**:
-  - Test lead extraction, cleaning, and pitch formatting without sending a single email or consuming quota using the `--dry-run` flag.
+- 🕒 **Anti-Spam Pacing & Safety Guardrails**:
+  - Random 45–75 second delay between dispatches.
+  - Quota limits (10–15 leads per run).
 
 ---
 
@@ -48,11 +44,13 @@ Designed to find hyper-targeted, verified leads from real-time web signals, vali
 Wedding-EInvite-Outreach-Agent/
 │
 ├── leads/
-│   ├── wedding_leads.csv           # Detailed lead log (Brand, Email, Phone, Status, Timestamp)
-│   └── wedding_sent_history.json   # Deduplication database to prevent double-contacting
+│   ├── wedding_leads.csv           # Detailed lead log for Wedding outreach
+│   ├── wedding_sent_history.json   # Deduplication database for Wedding outreach
+│   ├── service_leads.csv           # Detailed lead log for Creative Service outreach
+│   └── service_sent_history.json   # Deduplication database for Creative Service outreach
 │
 ├── resources/
-│   └── wedding_e_invite_sample.mp4 # Video sample (<25 MB) attached to pitches
+│   └── wedding_e_invite_sample.mp4 # Video sample (<25 MB) attached to wedding pitches
 │
 ├── templates/
 │   ├── __init__.py
@@ -61,7 +59,9 @@ Wedding-EInvite-Outreach-Agent/
 ├── .env.example                    # Template for Gmail & Telegram credentials
 ├── .gitignore                      # Securely ignores secrets and heavy binaries
 ├── requirements.txt                # Lightweight dependencies (requests, dnspython, ddgs, etc.)
-├── wedding_agent.py                # Main orchestration and dispatch engine
+├── wedding_agent.py                # Main Wedding & E-Invite outreach engine
+├── service_pitch_agent.py          # Creative Service (Video Editing/Reels) outreach engine (OFF by default)
+├── LICENSE                         # MIT License
 └── README.md                       # Documentation and usage guide
 ```
 
@@ -94,44 +94,24 @@ cp .env.example .env
 Edit `.env` with your credentials:
 
 ```ini
-# ==============================================================================
 # SENDER CREDENTIALS (GMAIL SMTP TLS)
-# ==============================================================================
-# Generate your 16-character Google App Password:
-# https://myaccount.google.com/apppasswords
 GMAIL_USER=your_email@gmail.com
 GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
 SENDER_NAME="Your Name"
 
-# ==============================================================================
-# TELEGRAM NOTIFICATIONS (OPTIONAL BUT RECOMMENDED)
-# ==============================================================================
-# Create a bot via @BotFather and retrieve chat ID via @userinfobot
+# TELEGRAM NOTIFICATIONS
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_USER_ID=
 
-# ==============================================================================
-# AGENT SAFETY LIMITS
-# ==============================================================================
-MIN_DELAY_SECONDS=45
-MAX_DELAY_SECONDS=75
-DEFAULT_BATCH_MAX=15
+# CREATIVE SERVICE AGENT SWITCH (Standby / Off by default)
+SERVICE_PITCH_ENABLED=false
 ```
-
-### 3. Add Video Sample (Optional)
-
-Drop your compressed motion video invite (`< 25 MB`) inside the `resources/` folder:
-```
-resources/wedding_e_invite_sample.mp4
-```
-*Note: If no file is placed here, the agent automatically inserts high-converting portfolio drive links into the email body without failing.*
 
 ---
 
-## 🛠️ Usage & Commands
+## 💍 Agent 1: Wedding & E-Invitation Agent (`wedding_agent.py`)
 
 ### 🔍 Dry Run (Safe Test Mode)
-Scrapes, cleans, and generates pitches without sending actual emails:
 ```bash
 python wedding_agent.py --dry-run
 ```
@@ -153,22 +133,33 @@ python wedding_agent.py --batch afternoon --max 15 --send
 python wedding_agent.py --batch night --max 15 --send
 ```
 
-### 📊 Inspecting Leads & Sent Logs
-
-All extracted and contacted leads are saved to `leads/wedding_leads.csv`:
-```csv
-brand_name,email,phone,batch,target_region,service_pitched,subject,status,timestamp
-Royal Weddings Delhi,contact@royalweddings.in,+919876543210,morning,India,E-Invitation,Collab on 3D Motion Invites,SENT,2026-11-06 10:15:22
-```
-
 ---
 
-## 📬 High-Converting Pitch Architecture
+## 🎬 Agent 2: Creative Service Pitch Agent (`service_pitch_agent.py`)
 
-The engine uses tailored, non-salesy B2B templates designed for agency decision makers:
+> [!NOTE]
+> **Standby Mode / Off by Default**: By default, running `python service_pitch_agent.py` will not execute or send any emails. It remains paused until you explicitly activate it.
 
-1. **For Wedding Planners**: Focuses on white-label 3D & motion invitation cards that impress their high-ticket brides and grooms without adding overhead to their team.
-2. **For Wedding Cinematographers**: Focuses on teaser reels, aesthetic typography intro videos, and cinematic save-the-date graphics.
+### How to Activate When Ready:
+
+#### Option A: Run via CLI Flag (One-Time Run)
+```bash
+# Safe dry-run test
+python service_pitch_agent.py --activate --dry-run
+
+# Live dispatch (Sends emails with human pacing)
+python service_pitch_agent.py --activate --send --max 10
+```
+
+#### Option B: Enable Permanently via `.env`
+Set in `.env`:
+```ini
+SERVICE_PITCH_ENABLED=true
+```
+Then run normally:
+```bash
+python service_pitch_agent.py --send --max 10
+```
 
 ---
 
@@ -176,8 +167,8 @@ The engine uses tailored, non-salesy B2B templates designed for agency decision 
 
 1. **DNS MX Record Resolution**: Ensures recipient server actually accepts incoming mail.
 2. **Random Humanized Delays**: 45 to 75 seconds between consecutive emails to mimic human behavior.
-3. **Daily Quotas**: Strict limit of 15 emails per session (max 45/day) to maintain 100% Google mailbox health and zero domain blacklisting.
-4. **History Deduplication**: `leads/wedding_sent_history.json` guarantees you never email the same contact twice.
+3. **Daily Quotas**: Strict limit of 10-15 emails per session to maintain 100% Google mailbox health and zero domain blacklisting.
+4. **History Deduplication**: JSON logs guarantee you never email the same contact twice.
 
 ---
 
