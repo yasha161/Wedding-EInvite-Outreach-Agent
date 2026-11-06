@@ -303,7 +303,18 @@ def send_smtp_email_with_attachment(to_email: str, subject: str, body: str, atta
         print(f"[-] SMTP Delivery failed for {to_email}: {e}", flush=True)
         return False
 
-def run_agent(batch_name="morning", max_leads=DEFAULT_BATCH_MAX, send_emails=False, dry_run=True):
+def get_current_batch_default() -> str:
+    current_hour = time.localtime().tm_hour
+    if 5 <= current_hour < 12:
+        return "morning"
+    elif 12 <= current_hour < 17:
+        return "afternoon"
+    else:
+        return "night"
+
+def run_agent(batch_name=None, max_leads=DEFAULT_BATCH_MAX, send_emails=False, dry_run=False):
+    if not batch_name:
+        batch_name = get_current_batch_default()
     outreach_enabled = os.getenv("EMAIL_OUTREACH_ENABLED", "false").lower() in ("true", "1", "yes")
     should_send = (send_emails or outreach_enabled) and not dry_run
 
@@ -477,16 +488,25 @@ def run_agent(batch_name="morning", max_leads=DEFAULT_BATCH_MAX, send_emails=Fal
     print("=" * 70 + "\n", flush=True)
 
 if __name__ == '__main__':
+    default_batch = get_current_batch_default()
     parser = argparse.ArgumentParser(description="Wedding & E-Invitation AI Outreach Agent")
-    parser.add_argument("--batch", choices=["morning", "afternoon", "night"], default="morning")
-    parser.add_argument("--max", type=int, default=DEFAULT_BATCH_MAX)
-    parser.add_argument("--send", action="store_true", default=False, help="Dispatch emails via Gmail TLS")
-    parser.add_argument("--dry-run", action="store_true", default=True, help="Dry run gathering only (no emails sent)")
+    parser.add_argument("--batch", choices=["morning", "afternoon", "night"], default=default_batch, help=f"Batch to run (default: {default_batch})")
+    parser.add_argument("--max", type=int, default=DEFAULT_BATCH_MAX, help="Max leads to process (default: 15)")
+    parser.add_argument("--send", action="store_true", default=False, help="Explicitly dispatch emails via Gmail TLS")
+    parser.add_argument("--dry-run", action="store_true", default=False, help="Dry run simulation only (no emails sent)")
     parser.add_argument("--force", action="store_true", default=False)
     args = parser.parse_args()
 
-    dry_run_flag = args.dry_run
-    if args.send or args.force:
-        dry_run_flag = False
+    outreach_env = os.getenv("EMAIL_OUTREACH_ENABLED", "false").lower() in ("true", "1", "yes")
 
-    run_agent(batch_name=args.batch, max_leads=args.max, send_emails=args.send, dry_run=dry_run_flag)
+    if args.dry_run:
+        dry_run_flag = True
+        send_emails_flag = False
+    elif args.send or args.force or outreach_env:
+        dry_run_flag = False
+        send_emails_flag = True
+    else:
+        dry_run_flag = True
+        send_emails_flag = False
+
+    run_agent(batch_name=args.batch, max_leads=args.max, send_emails=send_emails_flag, dry_run=dry_run_flag)
