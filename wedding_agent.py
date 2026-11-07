@@ -86,7 +86,32 @@ EXCLUDED_DOMAINS = {
 
 EXCLUDED_USERS = {
     'sentry', 'noreply', 'no-reply', 'abuse', 'privacy', 'support',
-    'help', 'admin', 'billing', 'jobs-noreply', 'donotreply'
+    'help', 'admin', 'billing', 'jobs-noreply', 'donotreply',
+    'production', 'info', 'contact', 'team', 'hello', 'booking', 'bookings',
+    'office', 'enquiry', 'inquiry', 'general', 'press', 'marketing', 'sales',
+    'orders', 'jobs', 'career', 'careers', 'hr', 'studio', 'media', 'mail',
+    'pr', 'service', 'services', 'work', 'collab', 'collaboration', 'official',
+    'business', 'event', 'wedding'
+}
+
+REJECT_VENDORS = [
+    'makeup', 'mua', 'hairstylist', 'hair stylist', 'food', 'foodie', 'restaurant',
+    'cafe', 'cake', 'bakery', 'mehndi', 'mehendi', 'henna', 'florist', 'floral',
+    'jewellery', 'jewelry', 'dj', 'catering', 'caterer', 'bartender', 'dress',
+    'trousseau', 'decor only', 'decorator only'
+]
+
+REQUIRED_ROLES = [
+    'wedding planner', 'wedding planning', 'wedding design', 'event planner',
+    'event management', 'wedding management', 'luxury wedding', 'destination wedding',
+    'wedding invitation', 'wedding invites', 'e-invite', 'invitation designer',
+    'wedding film', 'wedding cinema', 'wedding cinematography'
+]
+
+DEAD_EMAIL_BLACKLIST = {
+    'sweetweddingplanner@gmail.com', 'videosmakeupbymelinn@gmail.com',
+    'production@gmail.com', 'torontofood85@gmail.com', 'makeupbymelinn@gmail.com',
+    'productionthem@gmail.com', 'getzenny@gmail.com'
 }
 
 NEGATIVE_PHRASES = [
@@ -94,44 +119,38 @@ NEGATIVE_PHRASES = [
     'resume attached', 'apply here for job', 'my portfolio'
 ]
 
-# High-Intent Target Queries (15 leads per batch)
+# High-Intent Target Queries (2025/2026 Recency Guardrail)
 BATCH_TARGETS = {
     "morning": {
         "name": "Morning Batch (India & South Asia Luxury Wedding Planners)",
         "geo": "India OR Delhi OR Mumbai OR Jaipur OR Udaipur",
         "queries": [
-            'site:instagram.com "wedding planner" "gmail.com" Delhi OR Mumbai',
-            'site:instagram.com "wedding planner" "gmail.com" Jaipur OR Udaipur',
-            'site:instagram.com "wedding invitation" "gmail.com"',
-            'site:instagram.com "event planner" "wedding" "gmail.com"',
-            'site:instagram.com "destination wedding" "gmail.com" India',
-            'site:instagram.com "wedding management" "gmail.com"',
-            'site:instagram.com "wedding photographer" "gmail.com" India',
-            'wedding planner contact gmail.com Delhi OR Mumbai'
+            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" Delhi OR Mumbai',
+            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" Jaipur OR Udaipur',
+            'site:instagram.com "wedding invitation" "gmail.com" "2025" OR "2026"',
+            'site:instagram.com "destination wedding" "gmail.com" "2025" OR "2026" India',
+            'site:instagram.com "luxury wedding planner" "gmail.com" "2025" India',
+            'wedding planner "contact" "gmail.com" "2025" Delhi OR Mumbai'
         ]
     },
     "afternoon": {
         "name": "Afternoon Batch (UK, Dubai & European Destination Planners)",
         "geo": "Dubai OR UK OR London OR Europe",
         "queries": [
-            'site:instagram.com "wedding planner" "gmail.com" Dubai OR UAE',
-            'site:instagram.com "wedding planner" "gmail.com" London OR UK',
-            'site:instagram.com "destination wedding planner" "gmail.com" Europe',
-            'site:instagram.com "wedding invitation" "gmail.com" UK',
-            'site:instagram.com "luxury wedding" "gmail.com" Dubai',
-            'site:instagram.com "asian wedding planner" "gmail.com" UK'
+            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" Dubai',
+            'site:instagram.com "luxury wedding" "gmail.com" "2025" OR "2026" UAE OR Dubai',
+            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" London OR UK',
+            'site:instagram.com "destination wedding planner" "gmail.com" "2025" OR "2026" Europe'
         ]
     },
     "night": {
         "name": "Night Batch (USA, Canada & NRI Wedding Coordinators)",
         "geo": "USA OR Canada",
         "queries": [
-            'site:instagram.com "wedding planner" "gmail.com" USA',
-            'site:instagram.com "indian wedding planner" "gmail.com" USA',
-            'site:instagram.com "luxury wedding planner" "gmail.com" California OR New York',
-            'site:instagram.com "wedding invitation" "gmail.com" USA',
-            'site:instagram.com "wedding planner" "gmail.com" Canada OR Toronto',
-            'site:instagram.com "south asian wedding" "gmail.com" USA'
+            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" USA',
+            'site:instagram.com "indian wedding planner" "gmail.com" "2025" OR "2026" USA',
+            'site:instagram.com "luxury wedding planner" "gmail.com" "2025" OR "2026" California OR New York',
+            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" Canada OR Toronto'
         ]
     }
 }
@@ -251,17 +270,39 @@ def clean_email(email_str: str) -> str:
         return m.group(1)
     return ""
 
-def is_valid_email(email: str) -> bool:
+def is_valid_email(email: str, title: str = "", body: str = "") -> bool:
     if not email or '@' not in email:
         return False
-    user, domain = email.split('@', 1)
+    email_clean = email.strip().lower()
+    if email_clean in DEAD_EMAIL_BLACKLIST:
+        return False
+
+    user, domain = email_clean.split('@', 1)
     if len(user) < 3 or user.isdigit():
         return False
-    if domain in EXCLUDED_DOMAINS or user in EXCLUDED_USERS:
+
+    # Ban generic prefixes like production@, info@, contact@, booking@
+    if user in EXCLUDED_USERS:
         return False
+
+    # If domain is gmail.com, block irrelevant vendor usernames (makeup, food, florist, etc.)
+    if domain == 'gmail.com':
+        if any(bad in user for bad in ['makeup', 'mua', 'food', 'cake', 'mehndi', 'henna', 'florist', 'floral']):
+            return False
+
+    if domain in EXCLUDED_DOMAINS:
+        return False
+
     tld = domain.split('.')[-1]
     if tld not in VALID_TLDS:
         return False
+
+    # Rejection of irrelevant vendor types in title/body (e.g. makeup artist or caterer tagged in caption)
+    combined_text = f"{title} {body} {user}".lower()
+    if any(bad in combined_text for bad in REJECT_VENDORS):
+        if not any(req in combined_text for req in REQUIRED_ROLES):
+            return False
+
     try:
         answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
         if not answers:
@@ -389,7 +430,7 @@ def run_agent(batch_name=None, max_leads=DEFAULT_BATCH_MAX, send_emails=False, d
         if len(discovered_leads) >= max_leads:
             break
         em = row.get("email", "").strip().lower()
-        if em not in sent_history and em not in seen_in_run:
+        if em not in sent_history and em not in seen_in_run and is_valid_email(em, row.get("brand_name", "")):
             brand = row.get("brand_name", "")
             if 'cinema' in row.get("service_pitched", "").lower():
                 subj, body = get_wedding_cinema_pitch(brand, SENDER_NAME, active_attachment is not None)
@@ -441,7 +482,7 @@ def run_agent(batch_name=None, max_leads=DEFAULT_BATCH_MAX, send_emails=False, d
                         valid_candidates = []
                         for em in emails:
                             cleaned = clean_email(em)
-                            if cleaned not in sent_history and cleaned not in seen_in_run and is_valid_email(cleaned):
+                            if cleaned not in sent_history and cleaned not in seen_in_run and is_valid_email(cleaned, title, body):
                                 valid_candidates.append(cleaned)
 
                         if not valid_candidates:
@@ -549,12 +590,16 @@ def run_agent(batch_name=None, max_leads=DEFAULT_BATCH_MAX, send_emails=False, d
             f"📊 *Status*: `{status}`\n"
         )
         if phone:
-            phone_alerts.append(f"📞 *{brand}*: `{phone}` (Email: `{email}`)")
+            clean_digits = re.sub(r'\D', '', phone)
+            if len(clean_digits) == 10:
+                clean_digits = f"91{clean_digits}"
+            wa_link = f"https://wa.me/{clean_digits}"
+            phone_alerts.append(f"📞 *{brand}*: `{phone}`\n   👉 [Tap to Open WhatsApp Chat]({wa_link})")
 
     if phone_alerts:
         phone_msg = f"🔔 *DIRECT WEDDING LEADS WITH PHONE NUMBERS FOUND!*\n\n"
-        phone_msg += "\n".join(phone_alerts)
-        phone_msg += "\n\n💡 _You can directly WhatsApp or call these wedding planners!_"
+        phone_msg += "\n\n".join(phone_alerts)
+        phone_msg += "\n\n💡 _Tap any link above to message them on WhatsApp with high response rate!_"
         send_telegram(phone_msg)
 
     report = f"💒 *Wedding E-Invitation Leads — {target['name']}*\n"
