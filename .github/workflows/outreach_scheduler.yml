@@ -1,0 +1,98 @@
+name: 💍 Autonomous Wedding & E-Invitation Outreach Scheduler
+
+on:
+  schedule:
+    # Morning Batch (10:00 AM IST / 04:30 AM UTC) - India & South Asia
+    - cron: '30 4 * * *'
+    # Afternoon Batch (02:30 PM IST / 09:00 AM UTC) - Dubai, UAE, UK & Europe
+    - cron: '0 9 * * *'
+    # Night Batch (08:00 PM IST / 02:30 PM UTC) - USA, Canada & Global NRI
+    - cron: '30 14 * * *'
+
+  workflow_dispatch:
+    inputs:
+      batch:
+        description: 'Target Batch Segment'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - morning
+          - afternoon
+          - night
+      dry_run:
+        description: 'Simulate scraping without sending emails (Dry Run)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  run-outreach-batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      TZ: 'Asia/Kolkata'
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      SENDER_NAME: ${{ secrets.SENDER_NAME || 'Yash Arora' }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
+      EMAIL_OUTREACH_ENABLED: ${{ secrets.EMAIL_OUTREACH_ENABLED || 'true' }}
+      MIN_DELAY_SECONDS: 45
+      MAX_DELAY_SECONDS: 75
+      DEFAULT_BATCH_MAX: 15
+
+    steps:
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🚀 Execute Wedding Outreach Batch
+        run: |
+          BATCH="${{ inputs.batch || 'auto' }}"
+          DRY_RUN="${{ inputs.dry_run }}"
+
+          CMD_ARGS="--max 15"
+
+          if [ "$BATCH" != "auto" ] && [ -n "$BATCH" ]; then
+            CMD_ARGS="$CMD_ARGS --batch $BATCH"
+          fi
+
+          if [ "$DRY_RUN" = "true" ]; then
+            CMD_ARGS="$CMD_ARGS --dry-run"
+          else
+            CMD_ARGS="$CMD_ARGS --send"
+          fi
+
+          echo "[*] Executing: python wedding_agent.py $CMD_ARGS"
+          python wedding_agent.py $CMD_ARGS
+
+      - name: 💾 Commit & Push Updated Leads & History
+        if: always()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add leads/
+          if git diff --staged --quiet; then
+            echo "No new leads or status changes to commit."
+          else
+            git commit -m "chore(auto): record wedding outreach batch leads & sent history [skip ci]"
+            git push
+          fi

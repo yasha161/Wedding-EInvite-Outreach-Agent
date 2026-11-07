@@ -109,6 +109,26 @@ SERVICE_PITCH_ENABLED=false
 
 ---
 
+## ☁️ 24/7 Cloud Automation (GitHub Actions — Runs When PC is OFF)
+
+This engine is equipped with native GitHub Actions workflows located in `.github/workflows/outreach_scheduler.yml`. Even when your local computer is powered off or disconnected, GitHub's cloud runners will execute your daily batches at optimal local business hours:
+
+| Batch Segment | Trigger Time (IST) | Target Audience |
+| :--- | :--- | :--- |
+| **Morning Batch** | `10:00 AM IST` (`04:30 AM UTC`) | Luxury Wedding Planners across India & South Asia |
+| **Afternoon Batch** | `02:30 PM IST` (`09:00 AM UTC`) | Dubai, UAE, UK & European Destination Agencies |
+| **Night Batch** | `08:00 PM IST` (`02:30 PM UTC`) | USA, Canada & Global NRI Wedding Planners |
+
+### How It Operates in the Cloud:
+1. **Pulls from Pre-Queued Lead Pool**: If leads are pre-populated in `leads/wedding_leads.csv` with `QUEUED` status, the cloud runner consumes them immediately.
+2. **Live Fallback Scraping**: If the pre-queued pool is empty, the runner automatically scrapes fresh live signals.
+3. **DNS MX Verification**: Resolves mail exchange servers live before sending to prevent bounces.
+4. **Attaches Video Sample**: The `resources/wedding_e_invite_sample.mp4` video (14.8 MB) is attached directly over Gmail TLS.
+5. **Instant Telegram Alerts**: Sends warm lead alerts & client phone numbers to your Telegram bot in real time.
+6. **Automatic Git History Commit**: Automatically commits back updated CSV statuses and `wedding_sent_history.json` to prevent ever emailing the same brand twice.
+
+---
+
 ## 💍 Agent 1: Wedding & E-Invitation Agent (`wedding_agent.py`)
 
 ### 🔍 Dry Run (Safe Test Mode)

@@ -196,6 +196,51 @@ def save_lead_to_csv(lead: dict):
             "timestamp": lead.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
         })
 
+def load_queued_leads_from_csv(batch_name: str) -> list:
+    """Loads pre-queued leads from CSV for this batch that haven't been sent yet."""
+    if not WEDDING_CSV.exists():
+        return []
+    sent_history = load_sent_history()
+    queued = []
+    try:
+        with open(WEDDING_CSV, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                em = row.get("email", "").strip().lower()
+                st = row.get("status", "").strip().upper()
+                b = row.get("batch", "").strip().lower()
+                if em and em not in sent_history and st.startswith("QUEUED") and (b == batch_name or not b):
+                    queued.append(row)
+    except Exception as e:
+        print(f"[!] Error reading queued leads from CSV: {e}")
+    return queued
+
+def update_lead_status_in_csv(email: str, new_status: str):
+    """Updates the status and timestamp of a lead in wedding_leads.csv."""
+    if not WEDDING_CSV.exists():
+        return
+    rows = []
+    fieldnames = [
+        "brand_name", "email", "phone", "batch", "target_region",
+        "service_pitched", "subject", "source_link", "status", "timestamp"
+    ]
+    try:
+        with open(WEDDING_CSV, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames:
+                fieldnames = reader.fieldnames
+            for row in reader:
+                if row.get("email", "").strip().lower() == email.strip().lower():
+                    row["status"] = new_status
+                    row["timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                rows.append(row)
+        with open(WEDDING_CSV, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+    except Exception as e:
+        print(f"[!] Error updating lead status in CSV: {e}")
+
 def clean_email(email_str: str) -> str:
     cleaned = email_str.lower().strip().rstrip('.,;:()[]{}<>"\'')
     if '@gmail.com' in cleaned:
@@ -331,80 +376,116 @@ def run_agent(batch_name=None, max_leads=DEFAULT_BATCH_MAX, send_emails=False, d
         print(f"[*] Attached sample video: {active_attachment.name} ({active_attachment.stat().st_size / (1024*1024):.1f} MB)", flush=True)
 
     sent_history = load_sent_history()
-    from ddgs import DDGS
+    print(f"[*] Loaded {len(sent_history)} previously contacted wedding addresses.", flush=True)
+
+    # 1. First take from pre-queued leads in CSV
+    pre_queued = load_queued_leads_from_csv(batch_name)
+    print(f"[*] Found {len(pre_queued)} pre-queued leads ready in CSV for {batch_name} batch.", flush=True)
 
     discovered_leads = []
     seen_in_run = set()
 
-    with DDGS(timeout=20) as ddgs:
-        for q in target["queries"]:
-            if len(discovered_leads) >= max_leads:
-                break
+    for row in pre_queued:
+        if len(discovered_leads) >= max_leads:
+            break
+        em = row.get("email", "").strip().lower()
+        if em not in sent_history and em not in seen_in_run:
+            brand = row.get("brand_name", "")
+            if 'cinema' in row.get("service_pitched", "").lower():
+                subj, body = get_wedding_cinema_pitch(brand, SENDER_NAME, active_attachment is not None)
+                svc = "Wedding Cinema & Motion E-Invites"
+            else:
+                subj, body = get_wedding_planner_pitch(brand, SENDER_NAME, active_attachment is not None)
+                svc = "Luxury Wedding Video Invitations"
+            discovered_leads.append({
+                "brand_name": brand,
+                "email": em,
+                "phone": row.get("phone", ""),
+                "batch": batch_name,
+                "target_region": row.get("target_region", target["geo"]),
+                "service_pitched": svc,
+                "subject": row.get("subject") or subj,
+                "pitch_body": body,
+                "source_link": row.get("source_link", ""),
+                "status": "QUEUED"
+            })
+            seen_in_run.add(em)
+            print(f"  ⚡ [PRE-QUEUED LEAD] {brand} <{em}> (Phone: {row.get('phone', 'N/A')})", flush=True)
 
-            print(f"[?] Scanning wedding ecosystem: {q}", flush=True)
-            try:
-                results = list(ddgs.text(q, max_results=8))
-                for r in results:
-                    if len(discovered_leads) >= max_leads:
-                        break
+    # 2. If more leads are needed to meet batch quota, scrape live
+    if len(discovered_leads) < max_leads:
+        needed = max_leads - len(discovered_leads)
+        print(f"[*] Pre-queued has {len(discovered_leads)}/{max_leads}. Scanning live web for {needed} more...", flush=True)
+        from ddgs import DDGS
+        with DDGS(timeout=20) as ddgs:
+            for q in target["queries"]:
+                if len(discovered_leads) >= max_leads:
+                    break
 
-                    title = r.get("title", "")
-                    body = r.get("body", "")
-                    link = r.get("href", "")
-                    corpus = f"{title} {body}"
+                print(f"[?] Scanning wedding ecosystem: {q}", flush=True)
+                try:
+                    results = list(ddgs.text(q, max_results=8))
+                    for r in results:
+                        if len(discovered_leads) >= max_leads:
+                            break
 
-                    if any(neg in corpus.lower() for neg in NEGATIVE_PHRASES):
-                        continue
+                        title = r.get("title", "")
+                        body = r.get("body", "")
+                        link = r.get("href", "")
+                        corpus = f"{title} {body}"
 
-                    emails = EMAIL_REGEX.findall(corpus)
-                    valid_candidates = []
-                    for em in emails:
-                        cleaned = clean_email(em)
-                        if cleaned not in sent_history and cleaned not in seen_in_run and is_valid_email(cleaned):
-                            valid_candidates.append(cleaned)
+                        if any(neg in corpus.lower() for neg in NEGATIVE_PHRASES):
+                            continue
 
-                    if not valid_candidates:
-                        continue
+                        emails = EMAIL_REGEX.findall(corpus)
+                        valid_candidates = []
+                        for em in emails:
+                            cleaned = clean_email(em)
+                            if cleaned not in sent_history and cleaned not in seen_in_run and is_valid_email(cleaned):
+                                valid_candidates.append(cleaned)
 
-                    lead_email = valid_candidates[0]
-                    seen_in_run.add(lead_email)
+                        if not valid_candidates:
+                            continue
 
-                    phones = extract_phone_numbers(corpus)
-                    primary_phone = phones[0] if phones else ""
-                    brand_name = clean_brand_name(title, lead_email)
+                        lead_email = valid_candidates[0]
+                        seen_in_run.add(lead_email)
 
-                    # Determine pitch tone
-                    if 'cinema' in corpus.lower() or 'photograph' in corpus.lower():
-                        subject, pitch_body = get_wedding_cinema_pitch(brand_name, SENDER_NAME, active_attachment is not None)
-                        svc_type = "Wedding Cinema & Motion E-Invites"
-                    else:
-                        subject, pitch_body = get_wedding_planner_pitch(brand_name, SENDER_NAME, active_attachment is not None)
-                        svc_type = "Luxury Wedding Video Invitations"
+                        phones = extract_phone_numbers(corpus)
+                        primary_phone = phones[0] if phones else ""
+                        brand_name = clean_brand_name(title, lead_email)
 
-                    lead_record = {
-                        "brand_name": brand_name,
-                        "email": lead_email,
-                        "phone": primary_phone,
-                        "batch": batch_name,
-                        "target_region": target["geo"],
-                        "service_pitched": svc_type,
-                        "subject": subject,
-                        "pitch_body": pitch_body,
-                        "source_link": link,
-                        "status": "QUEUED" if not should_send else "PENDING"
-                    }
-                    discovered_leads.append(lead_record)
-                    save_lead_to_csv(lead_record)
+                        # Determine pitch tone
+                        if 'cinema' in corpus.lower() or 'photograph' in corpus.lower():
+                            subject, pitch_body = get_wedding_cinema_pitch(brand_name, SENDER_NAME, active_attachment is not None)
+                            svc_type = "Wedding Cinema & Motion E-Invites"
+                        else:
+                            subject, pitch_body = get_wedding_planner_pitch(brand_name, SENDER_NAME, active_attachment is not None)
+                            svc_type = "Luxury Wedding Video Invitations"
 
-                    print(f"  💍 [QUALIFIED WEDDING LEAD] {brand_name} <{lead_email}>", flush=True)
-                    if primary_phone:
-                        print(f"     📞 Phone / WA: {primary_phone}", flush=True)
-                    print(f"     Title: {title[:70]}...", flush=True)
+                        lead_record = {
+                            "brand_name": brand_name,
+                            "email": lead_email,
+                            "phone": primary_phone,
+                            "batch": batch_name,
+                            "target_region": target["geo"],
+                            "service_pitched": svc_type,
+                            "subject": subject,
+                            "pitch_body": pitch_body,
+                            "source_link": link,
+                            "status": "QUEUED"
+                        }
+                        discovered_leads.append(lead_record)
+                        save_lead_to_csv(lead_record)
 
-            except Exception as e:
-                print(f"  [-] Search query warning: {e}", flush=True)
+                        print(f"  💍 [QUALIFIED WEDDING LEAD] {brand_name} <{lead_email}>", flush=True)
+                        if primary_phone:
+                            print(f"     📞 Phone / WA: {primary_phone}", flush=True)
+                        print(f"     Title: {title[:70]}...", flush=True)
 
-            time.sleep(random.uniform(2.5, 3.5))
+                except Exception as e:
+                    print(f"  [-] Search query warning: {e}", flush=True)
+
+                time.sleep(random.uniform(2.5, 3.5))
 
     print(f"\n[=] Qualified Wedding Leads: {len(discovered_leads)}/{max_leads}", flush=True)
     if not discovered_leads:
@@ -433,6 +514,7 @@ def run_agent(batch_name=None, max_leads=DEFAULT_BATCH_MAX, send_emails=False, d
             print(f"[>] Dispatching wedding pitch via Gmail TLS...", flush=True)
             success = send_smtp_email_with_attachment(email, subject, body, active_attachment)
             status = "SENT" if success else "FAILED"
+            update_lead_status_in_csv(email, status)
             if success:
                 dispatched_count += 1
                 sent_history.add(email)

@@ -16,18 +16,20 @@ env/
 venv/
 ENV/
 
-# Large media files (attachments should be hosted or kept in resources locally)
+# Large media files (allow sample demo video under 25MB)
 *.mp4
 *.mov
 *.avi
 *.mkv
-resources/*.mp4
-resources/*.mov
+!resources/wedding_e_invite_sample.mp4
 
-# Lead logs & local histories (keep folder structure with .gitkeep)
+# Lead logs & local histories tracked for GitHub Actions cloud deduplication
 leads/*.csv
 leads/*.json
+!leads/wedding_leads.csv
+!leads/wedding_sent_history.json
 !leads/.gitkeep
+!resources/.gitkeep
 
 # IDE & OS files
 .vscode/
