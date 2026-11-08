@@ -119,38 +119,77 @@ NEGATIVE_PHRASES = [
     'resume attached', 'apply here for job', 'my portfolio'
 ]
 
-# High-Intent Target Queries (2025/2026 Recency Guardrail)
+# High-Intent Target Queries (Refined, Multi-Region & Natural Syntax)
 BATCH_TARGETS = {
     "morning": {
         "name": "Morning Batch (India & South Asia Luxury Wedding Planners)",
         "geo": "India OR Delhi OR Mumbai OR Jaipur OR Udaipur",
         "queries": [
-            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" Delhi OR Mumbai',
-            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" Jaipur OR Udaipur',
-            'site:instagram.com "wedding invitation" "gmail.com" "2025" OR "2026"',
-            'site:instagram.com "destination wedding" "gmail.com" "2025" OR "2026" India',
-            'site:instagram.com "luxury wedding planner" "gmail.com" "2025" India',
-            'wedding planner "contact" "gmail.com" "2025" Delhi OR Mumbai'
+            'site:instagram.com "wedding planner" "gmail.com" Delhi',
+            'site:instagram.com "wedding planner" "gmail.com" Mumbai',
+            'site:instagram.com "wedding planner" "gmail.com" Jaipur',
+            'site:instagram.com "wedding planner" "gmail.com" Udaipur',
+            'site:instagram.com "wedding planner" "gmail.com" Bangalore',
+            'site:instagram.com "wedding planner" "gmail.com" Goa',
+            'site:instagram.com "wedding planner" "gmail.com" Chandigarh',
+            'site:instagram.com "wedding planner" "gmail.com" Kolkata',
+            'site:instagram.com "wedding planner" "gmail.com" Hyderabad',
+            'site:instagram.com "wedding planner" "gmail.com" Pune',
+            'site:instagram.com "wedding planner" "gmail.com" Ahmedabad',
+            'site:instagram.com "wedding planner" "gmail.com" Lucknow',
+            'site:instagram.com "destination wedding planner" "gmail.com" Rajasthan',
+            'site:instagram.com "wedding invitation designer" "gmail.com" India',
+            'site:instagram.com "wedding cinema" "gmail.com" India',
+            'site:instagram.com "wedding filmmaker" "gmail.com" Delhi',
+            'site:instagram.com "luxury wedding planner" "gmail.com" India',
+            'wedding planner Delhi instagram contact email gmail.com',
+            'wedding planner Mumbai instagram contact email gmail.com',
+            'wedding planner Jaipur instagram contact email gmail.com'
         ]
     },
     "afternoon": {
         "name": "Afternoon Batch (UK, Dubai & European Destination Planners)",
         "geo": "Dubai OR UK OR London OR Europe",
         "queries": [
-            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" Dubai',
-            'site:instagram.com "luxury wedding" "gmail.com" "2025" OR "2026" UAE OR Dubai',
-            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" London OR UK',
-            'site:instagram.com "destination wedding planner" "gmail.com" "2025" OR "2026" Europe'
+            'site:instagram.com "wedding planner" "gmail.com" Dubai',
+            'site:instagram.com "luxury wedding" "gmail.com" Dubai',
+            'site:instagram.com "wedding planner" "gmail.com" Abu Dhabi',
+            'site:instagram.com "wedding planner" "gmail.com" UAE',
+            'site:instagram.com "asian wedding planner" "gmail.com" London',
+            'site:instagram.com "wedding planner" "gmail.com" London UK',
+            'site:instagram.com "wedding planner" "gmail.com" Birmingham UK',
+            'site:instagram.com "destination wedding planner" "gmail.com" Europe',
+            'site:instagram.com "luxury wedding planner" "gmail.com" UK',
+            'site:instagram.com "wedding invitation" "gmail.com" UK',
+            'site:instagram.com "wedding cinematography" "gmail.com" Dubai',
+            'site:instagram.com "wedding film" "gmail.com" London',
+            'wedding planner Dubai instagram contact email gmail.com',
+            'wedding planner London UK instagram email gmail.com',
+            'asian wedding planner UK instagram email gmail.com'
         ]
     },
     "night": {
         "name": "Night Batch (USA, Canada & NRI Wedding Coordinators)",
         "geo": "USA OR Canada",
         "queries": [
-            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" USA',
-            'site:instagram.com "indian wedding planner" "gmail.com" "2025" OR "2026" USA',
-            'site:instagram.com "luxury wedding planner" "gmail.com" "2025" OR "2026" California OR New York',
-            'site:instagram.com "wedding planner" "gmail.com" "2025" OR "2026" Canada OR Toronto'
+            'site:instagram.com "indian wedding planner" "gmail.com" USA',
+            'site:instagram.com "south asian wedding planner" "gmail.com" USA',
+            'site:instagram.com "luxury wedding planner" "gmail.com" California',
+            'site:instagram.com "wedding planner" "gmail.com" New York',
+            'site:instagram.com "wedding planner" "gmail.com" Dallas Texas',
+            'site:instagram.com "wedding planner" "gmail.com" Houston',
+            'site:instagram.com "wedding planner" "gmail.com" Chicago',
+            'site:instagram.com "wedding planner" "gmail.com" New Jersey',
+            'site:instagram.com "wedding planner" "gmail.com" Los Angeles',
+            'site:instagram.com "wedding planner" "gmail.com" Miami Florida',
+            'site:instagram.com "indian wedding planner" "gmail.com" Toronto',
+            'site:instagram.com "wedding planner" "gmail.com" Vancouver',
+            'site:instagram.com "wedding planner" "gmail.com" Canada',
+            'site:instagram.com "wedding invitation designer" "gmail.com" USA',
+            'site:instagram.com "wedding cinematography" "gmail.com" USA',
+            'indian wedding planner California contact email gmail.com',
+            'wedding planner New York contact email gmail.com',
+            'indian wedding planner Texas contact email gmail.com'
         ]
     }
 }
@@ -264,11 +303,17 @@ def clean_email(email_str: str) -> str:
     cleaned = email_str.lower().strip().rstrip('.,;:()[]{}<>"\'')
     if '@gmail.com' in cleaned:
         idx = cleaned.find('@gmail.com')
-        return cleaned[:idx + 10]
+        cleaned = cleaned[:idx + 10]
     m = re.search(r'([a-zA-Z0-9_.+-]+@([a-zA-Z0-9-]+\.[a-zA-Z]{2,6}))', cleaned)
     if m:
-        return m.group(1)
-    return ""
+        cleaned = m.group(1)
+    else:
+        return ""
+    # Strip glued junk like "videosmakeupbymelinn" or "reelsxyz"
+    for prefix in ['videos', 'reels', 'email', 'contact']:
+        if cleaned.startswith(prefix) and len(cleaned.split('@')[0]) > len(prefix) + 3:
+            cleaned = cleaned[len(prefix):]
+    return cleaned
 
 def is_valid_email(email: str, title: str = "", body: str = "") -> bool:
     if not email or '@' not in email:
@@ -281,13 +326,13 @@ def is_valid_email(email: str, title: str = "", body: str = "") -> bool:
     if len(user) < 3 or user.isdigit():
         return False
 
-    # Ban generic prefixes like production@, info@, contact@, booking@
+    # 1. Ban generic dictionary prefixes across ALL domains (Zero-Info/Zero-Admin guarantee)
     if user in EXCLUDED_USERS:
         return False
 
-    # If domain is gmail.com, block irrelevant vendor usernames (makeup, food, florist, etc.)
-    if domain == 'gmail.com':
-        if any(bad in user for bad in ['makeup', 'mua', 'food', 'cake', 'mehndi', 'henna', 'florist', 'floral']):
+    # 2. Hard reject if email username contains ANY vendor keyword
+    for bad in ['makeup', 'mua', 'hair', 'food', 'bakery', 'cake', 'catering', 'caterer', 'mehndi', 'henna', 'florist', 'floral', 'jewel', 'dj', 'bartender']:
+        if bad in user:
             return False
 
     if domain in EXCLUDED_DOMAINS:
@@ -297,12 +342,17 @@ def is_valid_email(email: str, title: str = "", body: str = "") -> bool:
     if tld not in VALID_TLDS:
         return False
 
-    # Rejection of irrelevant vendor types in title/body (e.g. makeup artist or caterer tagged in caption)
-    combined_text = f"{title} {body} {user}".lower()
-    if any(bad in combined_text for bad in REJECT_VENDORS):
-        if not any(req in combined_text for req in REQUIRED_ROLES):
-            return False
+    # 3. Check title / body for explicit vendor profiles
+    title_lower = title.lower()
+    if any(v in title_lower for v in ['makeup artist', 'mua', 'hairstylist', 'cake designer', 'bakery', 'florist', 'caterer', 'catering', 'foodie']):
+        return False
 
+    # 4. Require wedding planning / cinema signal in context
+    corpus = f"{title} {body}".lower()
+    if not any(req in corpus for req in REQUIRED_ROLES):
+        return False
+
+    # 5. DNS MX Check
     try:
         answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
         if not answers:
@@ -310,6 +360,19 @@ def is_valid_email(email: str, title: str = "", body: str = "") -> bool:
     except Exception:
         return False
     return True
+
+def search_with_fallback(query: str, max_results: int = 15):
+    """Executes search with multi-backend fallback and retry."""
+    from ddgs import DDGS
+    for backend in ['api', 'html', 'lite']:
+        try:
+            with DDGS(timeout=15) as ddgs:
+                results = list(ddgs.text(query, max_results=max_results, backend=backend))
+                if results:
+                    return results
+        except Exception:
+            continue
+    return []
 
 def extract_phone_numbers(text: str) -> list:
     found = PHONE_REGEX.findall(text)
@@ -430,7 +493,7 @@ def run_agent(batch_name=None, max_leads=DEFAULT_BATCH_MAX, send_emails=False, d
         if len(discovered_leads) >= max_leads:
             break
         em = row.get("email", "").strip().lower()
-        if em not in sent_history and em not in seen_in_run and is_valid_email(em, row.get("brand_name", "")):
+        if em not in sent_history and em not in seen_in_run and is_valid_email(em, row.get("brand_name", ""), row.get("service_pitched", "")):
             brand = row.get("brand_name", "")
             if 'cinema' in row.get("service_pitched", "").lower():
                 subj, body = get_wedding_cinema_pitch(brand, SENDER_NAME, active_attachment is not None)
@@ -457,74 +520,72 @@ def run_agent(batch_name=None, max_leads=DEFAULT_BATCH_MAX, send_emails=False, d
     if len(discovered_leads) < max_leads:
         needed = max_leads - len(discovered_leads)
         print(f"[*] Pre-queued has {len(discovered_leads)}/{max_leads}. Scanning live web for {needed} more...", flush=True)
-        from ddgs import DDGS
-        with DDGS(timeout=20) as ddgs:
-            for q in target["queries"]:
-                if len(discovered_leads) >= max_leads:
-                    break
+        for q in target["queries"]:
+            if len(discovered_leads) >= max_leads:
+                break
 
-                print(f"[?] Scanning wedding ecosystem: {q}", flush=True)
-                try:
-                    results = list(ddgs.text(q, max_results=8))
-                    for r in results:
-                        if len(discovered_leads) >= max_leads:
-                            break
+            print(f"[?] Scanning wedding ecosystem: {q}", flush=True)
+            try:
+                results = search_with_fallback(q, max_results=20)
+                for r in results:
+                    if len(discovered_leads) >= max_leads:
+                        break
 
-                        title = r.get("title", "")
-                        body = r.get("body", "")
-                        link = r.get("href", "")
-                        corpus = f"{title} {body}"
+                    title = r.get("title", "")
+                    body = r.get("body", "")
+                    link = r.get("href", "")
+                    corpus = f"{title} {body}"
 
-                        if any(neg in corpus.lower() for neg in NEGATIVE_PHRASES):
-                            continue
+                    if any(neg in corpus.lower() for neg in NEGATIVE_PHRASES):
+                        continue
 
-                        emails = EMAIL_REGEX.findall(corpus)
-                        valid_candidates = []
-                        for em in emails:
-                            cleaned = clean_email(em)
-                            if cleaned not in sent_history and cleaned not in seen_in_run and is_valid_email(cleaned, title, body):
-                                valid_candidates.append(cleaned)
+                    emails = EMAIL_REGEX.findall(corpus)
+                    valid_candidates = []
+                    for em in emails:
+                        cleaned = clean_email(em)
+                        if cleaned not in sent_history and cleaned not in seen_in_run and is_valid_email(cleaned, title, body):
+                            valid_candidates.append(cleaned)
 
-                        if not valid_candidates:
-                            continue
+                    if not valid_candidates:
+                        continue
 
-                        lead_email = valid_candidates[0]
-                        seen_in_run.add(lead_email)
+                    lead_email = valid_candidates[0]
+                    seen_in_run.add(lead_email)
 
-                        phones = extract_phone_numbers(corpus)
-                        primary_phone = phones[0] if phones else ""
-                        brand_name = clean_brand_name(title, lead_email)
+                    phones = extract_phone_numbers(corpus)
+                    primary_phone = phones[0] if phones else ""
+                    brand_name = clean_brand_name(title, lead_email)
 
-                        # Determine pitch tone
-                        if 'cinema' in corpus.lower() or 'photograph' in corpus.lower():
-                            subject, pitch_body = get_wedding_cinema_pitch(brand_name, SENDER_NAME, active_attachment is not None)
-                            svc_type = "Wedding Cinema & Motion E-Invites"
-                        else:
-                            subject, pitch_body = get_wedding_planner_pitch(brand_name, SENDER_NAME, active_attachment is not None)
-                            svc_type = "Luxury Wedding Video Invitations"
+                    # Determine pitch tone
+                    if 'cinema' in corpus.lower() or 'photograph' in corpus.lower():
+                        subject, pitch_body = get_wedding_cinema_pitch(brand_name, SENDER_NAME, active_attachment is not None)
+                        svc_type = "Wedding Cinema & Motion E-Invites"
+                    else:
+                        subject, pitch_body = get_wedding_planner_pitch(brand_name, SENDER_NAME, active_attachment is not None)
+                        svc_type = "Luxury Wedding Video Invitations"
 
-                        lead_record = {
-                            "brand_name": brand_name,
-                            "email": lead_email,
-                            "phone": primary_phone,
-                            "batch": batch_name,
-                            "target_region": target["geo"],
-                            "service_pitched": svc_type,
-                            "subject": subject,
-                            "pitch_body": pitch_body,
-                            "source_link": link,
-                            "status": "QUEUED"
-                        }
-                        discovered_leads.append(lead_record)
-                        save_lead_to_csv(lead_record)
+                    lead_record = {
+                        "brand_name": brand_name,
+                        "email": lead_email,
+                        "phone": primary_phone,
+                        "batch": batch_name,
+                        "target_region": target["geo"],
+                        "service_pitched": svc_type,
+                        "subject": subject,
+                        "pitch_body": pitch_body,
+                        "source_link": link,
+                        "status": "QUEUED"
+                    }
+                    discovered_leads.append(lead_record)
+                    save_lead_to_csv(lead_record)
 
-                        print(f"  💍 [QUALIFIED WEDDING LEAD] {brand_name} <{lead_email}>", flush=True)
-                        if primary_phone:
-                            print(f"     📞 Phone / WA: {primary_phone}", flush=True)
-                        print(f"     Title: {title[:70]}...", flush=True)
+                    print(f"  💍 [QUALIFIED WEDDING LEAD] {brand_name} <{lead_email}>", flush=True)
+                    if primary_phone:
+                        print(f"     📞 Phone / WA: {primary_phone}", flush=True)
+                    print(f"     Title: {title[:70]}...", flush=True)
 
-                except Exception as e:
-                    print(f"  [-] Search query warning: {e}", flush=True)
+            except Exception as e:
+                print(f"  [-] Search query warning: {e}", flush=True)
 
                 time.sleep(random.uniform(2.5, 3.5))
 
