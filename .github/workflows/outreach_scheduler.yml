@@ -1,13 +1,11 @@
-name: 💍 Autonomous Wedding & E-Invitation Outreach Scheduler
+name: 💌 Autonomous Wedding & E-Invitation Outreach Scheduler
 
 on:
-  schedule:
-    # Morning Batch (10:00 AM IST / 04:30 AM UTC) - India & South Asia
-    - cron: '30 4 * * *'
-    # Afternoon Batch (02:30 PM IST / 09:00 AM UTC) - Dubai, UAE, UK & Europe
-    - cron: '0 9 * * *'
-    # Night Batch (08:00 PM IST / 02:30 PM UTC) - USA, Canada & Global NRI
-    - cron: '30 14 * * *'
+  # Automated cron schedule paused per user request to protect Gmail account
+  # schedule:
+  #   - cron: '30 4 * * *'
+  #   - cron: '0 9 * * *'
+  #   - cron: '30 14 * * *'
 
   workflow_dispatch:
     inputs:
@@ -24,7 +22,7 @@ on:
       dry_run:
         description: 'Simulate scraping without sending emails (Dry Run)'
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
@@ -42,7 +40,7 @@ jobs:
       SENDER_NAME: ${{ secrets.SENDER_NAME || 'Yash Arora' }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
-      EMAIL_OUTREACH_ENABLED: ${{ secrets.EMAIL_OUTREACH_ENABLED || 'true' }}
+      EMAIL_OUTREACH_ENABLED: 'false' # HARD SAFETY KILLSWITCH: Emails paused to prevent Gmail block
       MIN_DELAY_SECONDS: 45
       MAX_DELAY_SECONDS: 75
       DEFAULT_BATCH_MAX: 15
@@ -75,7 +73,8 @@ jobs:
             CMD_ARGS="$CMD_ARGS --batch $BATCH"
           fi
 
-          if [ "$DRY_RUN" = "true" ]; then
+          if [ "$DRY_RUN" = "true" ] || [ "${{ env.EMAIL_OUTREACH_ENABLED }}" = "false" ]; then
+            echo "[SAFETY] Email outreach is PAUSED. Running in dry-run mode."
             CMD_ARGS="$CMD_ARGS --dry-run"
           else
             CMD_ARGS="$CMD_ARGS --send"
